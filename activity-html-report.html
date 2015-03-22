@@ -1,3 +1,4 @@
+
 Activity Classification
 Geoff Yuen
 
@@ -92,65 +93,20 @@ lda_CM <- confusionMatrix(lda_predicted, cv_data$classe)
 plot(lda_CM$table, main = paste("LDA Confusion Matrix: Accuracy=", round(lda_CM$overall['Accuracy'], 2)))
 GBM model skipped due to crashing inside Rstudio run time during HTML output, results from R running consol; see text file)
 
-Confusion Matrix and Statistics
-
-      Reference
-Prediction A B C D E A 1375 36 0 0 0 B 13 878 28 3 12 C 5 33 814 19 7 D 1 1 13 775 8 E 1 1 0 7 874
-
-Overall Statistics
-
-           Accuracy : 0.9617          
-             95% CI : (0.9559, 0.9669)
-No Information Rate : 0.2845          
-P-Value [Acc > NIR] : < 2.2e-16       
-                                      
-              Kappa : 0.9515          
-Mcnemar’s Test P-Value : 6.364e-05
-
 RF Model with 100 trees, 4 fold CV
 
 rf_mod <- train(classe ~ ., data=training_data, method="rf", ntree = 100, 
-trControl = trainControl(method = "cv", number = 4, allowParallel = TRUE, verboseIter = TRUE))
-## + Fold1: mtry= 2 
-## - Fold1: mtry= 2 
-## + Fold1: mtry=27 
-## - Fold1: mtry=27 
-## + Fold1: mtry=52 
-## - Fold1: mtry=52 
-## + Fold2: mtry= 2 
-## - Fold2: mtry= 2 
-## + Fold2: mtry=27 
-## - Fold2: mtry=27 
-## + Fold2: mtry=52 
-## - Fold2: mtry=52 
-## + Fold3: mtry= 2 
-## - Fold3: mtry= 2 
-## + Fold3: mtry=27 
-## - Fold3: mtry=27 
-## + Fold3: mtry=52 
-## - Fold3: mtry=52 
-## + Fold4: mtry= 2 
-## - Fold4: mtry= 2 
-## + Fold4: mtry=27 
-## - Fold4: mtry=27 
-## + Fold4: mtry=52 
-## - Fold4: mtry=52 
-## Aggregating results
-## Selecting tuning parameters
-## Fitting mtry = 27 on full training set
+trControl = trainControl(method = "cv", number = 4, allowParallel = TRUE))
 rf_predicted <- predict(rf_mod, cv_data)
 rf_CM <- confusionMatrix(rf_predicted , cv_data$classe)
 plot(rf_CM$table,  main = paste("Random Forest Confusion Matrix: Accuracy=", round(rf_CM$overall['Accuracy'], 2)))
 Out of Sample Accuracy (skipping GBM)
 
  OOSAccuracy <- data.frame(lda_CM$overall[1],  rf_CM$overall[1])
- colnames(OOSAccuracy) <- c("RP overall",   "  RF overall")
+ colnames(OOSAccuracy) <- c("LDA overall",   "  RF overall")
  OOSAccuracy 
-##          RP overall   RF overall
-## Accuracy  0.7022838    0.9922512
-       lda overall     RF overall
-Accuracy 0.7023 0.9918
-
+##          LDA overall   RF overall
+## Accuracy   0.7022838    0.9922512
 final_prediction <- predict(rf_mod, ml_test)
 final_prediction
 ##  [1] B A B A A E D B A A B C B A E E A B B B
