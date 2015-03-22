@@ -1,1 +1,158 @@
+Activity Classification
+Geoff Yuen
 
+Monday, March 23, 2015
+
+Summary of activity pattern classification using LDA, GBM and Random Forest. RF was found to be most accurate. After data was read into memory, unusable entries were eliminated so that only predicted variable ‘classe’ and matched predictors in training & test dataset are left. Training data are then splitted according to 0.75 for cross validation in sample modelling.
+
+library(caret)
+## Loading required package: lattice
+## Loading required package: ggplot2
+library(ggplot2)
+library(randomForest) 
+## randomForest 4.6-10
+## Type rfNews() to see new features/changes/bug fixes.
+set.seed(2468)
+Get data into memory
+
+trainingUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testingUrl <-  "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(url = trainingUrl, destfile = 'training_data.csv')
+download.file(url = testingUrl, destfile = 'test_data.csv')
+Clean up unwanted data neither predictors nor predicted
+
+ml_training <- read.csv(file = 'training_data.csv',na.strings=c("NA","#DIV/0!", ""))
+ml_test <- read.csv(file = 'test_data.csv',na.strings=c("NA","#DIV/0!", ""))
+
+ml_training<-ml_training[,colSums(is.na(ml_training)) == 0]
+ml_test<-ml_test[,colSums(is.na(ml_test)) == 0]
+
+ml_training <-ml_training[,-c(1:7)]
+ml_test <-ml_test[,-c(1:7)]
+check dimensions, colnames and see if any unmatched
+
+dim(ml_training) 
+## [1] 19622    53
+dim(ml_test) 
+## [1] 20 53
+colnames(ml_training)
+##  [1] "roll_belt"            "pitch_belt"           "yaw_belt"            
+##  [4] "total_accel_belt"     "gyros_belt_x"         "gyros_belt_y"        
+##  [7] "gyros_belt_z"         "accel_belt_x"         "accel_belt_y"        
+## [10] "accel_belt_z"         "magnet_belt_x"        "magnet_belt_y"       
+## [13] "magnet_belt_z"        "roll_arm"             "pitch_arm"           
+## [16] "yaw_arm"              "total_accel_arm"      "gyros_arm_x"         
+## [19] "gyros_arm_y"          "gyros_arm_z"          "accel_arm_x"         
+## [22] "accel_arm_y"          "accel_arm_z"          "magnet_arm_x"        
+## [25] "magnet_arm_y"         "magnet_arm_z"         "roll_dumbbell"       
+## [28] "pitch_dumbbell"       "yaw_dumbbell"         "total_accel_dumbbell"
+## [31] "gyros_dumbbell_x"     "gyros_dumbbell_y"     "gyros_dumbbell_z"    
+## [34] "accel_dumbbell_x"     "accel_dumbbell_y"     "accel_dumbbell_z"    
+## [37] "magnet_dumbbell_x"    "magnet_dumbbell_y"    "magnet_dumbbell_z"   
+## [40] "roll_forearm"         "pitch_forearm"        "yaw_forearm"         
+## [43] "total_accel_forearm"  "gyros_forearm_x"      "gyros_forearm_y"     
+## [46] "gyros_forearm_z"      "accel_forearm_x"      "accel_forearm_y"     
+## [49] "accel_forearm_z"      "magnet_forearm_x"     "magnet_forearm_y"    
+## [52] "magnet_forearm_z"     "classe"
+colnames(ml_test)
+##  [1] "roll_belt"            "pitch_belt"           "yaw_belt"            
+##  [4] "total_accel_belt"     "gyros_belt_x"         "gyros_belt_y"        
+##  [7] "gyros_belt_z"         "accel_belt_x"         "accel_belt_y"        
+## [10] "accel_belt_z"         "magnet_belt_x"        "magnet_belt_y"       
+## [13] "magnet_belt_z"        "roll_arm"             "pitch_arm"           
+## [16] "yaw_arm"              "total_accel_arm"      "gyros_arm_x"         
+## [19] "gyros_arm_y"          "gyros_arm_z"          "accel_arm_x"         
+## [22] "accel_arm_y"          "accel_arm_z"          "magnet_arm_x"        
+## [25] "magnet_arm_y"         "magnet_arm_z"         "roll_dumbbell"       
+## [28] "pitch_dumbbell"       "yaw_dumbbell"         "total_accel_dumbbell"
+## [31] "gyros_dumbbell_x"     "gyros_dumbbell_y"     "gyros_dumbbell_z"    
+## [34] "accel_dumbbell_x"     "accel_dumbbell_y"     "accel_dumbbell_z"    
+## [37] "magnet_dumbbell_x"    "magnet_dumbbell_y"    "magnet_dumbbell_z"   
+## [40] "roll_forearm"         "pitch_forearm"        "yaw_forearm"         
+## [43] "total_accel_forearm"  "gyros_forearm_x"      "gyros_forearm_y"     
+## [46] "gyros_forearm_z"      "accel_forearm_x"      "accel_forearm_y"     
+## [49] "accel_forearm_z"      "magnet_forearm_x"     "magnet_forearm_y"    
+## [52] "magnet_forearm_z"     "problem_id"
+sameName <- colnames(ml_test) == colnames(ml_training)
+colnames(ml_training)[sameName==FALSE]
+## [1] "classe"
+Next Split data into training and test set using 0.75 ratio; plot and check
+
+inTrain <- createDataPartition(y=ml_training$classe, p=0.75, list=FALSE)
+training_data <- ml_training[inTrain,]
+cv_data <- ml_training[-inTrain,]
+
+plot(training_data$classe, col="orange", main="Bar Plot Classe variable levels within training dataset", xlab="Classe levels", ylab="Frequency")
+Fitting model by LDA
+
+lda_mod <- train(classe ~., data=training_data, method="lda")
+## Loading required package: MASS
+lda_predicted <- predict(lda_mod, cv_data)
+lda_CM <- confusionMatrix(lda_predicted, cv_data$classe)
+plot(lda_CM$table, main = paste("LDA Confusion Matrix: Accuracy=", round(lda_CM$overall['Accuracy'], 2)))
+GBM model skipped due to crashing inside Rstudio run time during HTML output, results from R running consol; see text file)
+
+Confusion Matrix and Statistics
+
+      Reference
+Prediction A B C D E A 1375 36 0 0 0 B 13 878 28 3 12 C 5 33 814 19 7 D 1 1 13 775 8 E 1 1 0 7 874
+
+Overall Statistics
+
+           Accuracy : 0.9617          
+             95% CI : (0.9559, 0.9669)
+No Information Rate : 0.2845          
+P-Value [Acc > NIR] : < 2.2e-16       
+                                      
+              Kappa : 0.9515          
+Mcnemar’s Test P-Value : 6.364e-05
+
+RF Model with 100 trees, 4 fold CV
+
+rf_mod <- train(classe ~ ., data=training_data, method="rf", ntree = 100, 
+trControl = trainControl(method = "cv", number = 4, allowParallel = TRUE, verboseIter = TRUE))
+## + Fold1: mtry= 2 
+## - Fold1: mtry= 2 
+## + Fold1: mtry=27 
+## - Fold1: mtry=27 
+## + Fold1: mtry=52 
+## - Fold1: mtry=52 
+## + Fold2: mtry= 2 
+## - Fold2: mtry= 2 
+## + Fold2: mtry=27 
+## - Fold2: mtry=27 
+## + Fold2: mtry=52 
+## - Fold2: mtry=52 
+## + Fold3: mtry= 2 
+## - Fold3: mtry= 2 
+## + Fold3: mtry=27 
+## - Fold3: mtry=27 
+## + Fold3: mtry=52 
+## - Fold3: mtry=52 
+## + Fold4: mtry= 2 
+## - Fold4: mtry= 2 
+## + Fold4: mtry=27 
+## - Fold4: mtry=27 
+## + Fold4: mtry=52 
+## - Fold4: mtry=52 
+## Aggregating results
+## Selecting tuning parameters
+## Fitting mtry = 27 on full training set
+rf_predicted <- predict(rf_mod, cv_data)
+rf_CM <- confusionMatrix(rf_predicted , cv_data$classe)
+plot(rf_CM$table,  main = paste("Random Forest Confusion Matrix: Accuracy=", round(rf_CM$overall['Accuracy'], 2)))
+Out of Sample Accuracy (skipping GBM)
+
+ OOSAccuracy <- data.frame(lda_CM$overall[1],  rf_CM$overall[1])
+ colnames(OOSAccuracy) <- c("RP overall",   "  RF overall")
+ OOSAccuracy 
+##          RP overall   RF overall
+## Accuracy  0.7022838    0.9922512
+       lda overall     RF overall
+Accuracy 0.7023 0.9918
+
+final_prediction <- predict(rf_mod, ml_test)
+final_prediction
+##  [1] B A B A A E D B A A B C B A E E A B B B
+## Levels: A B C D E
+[1] B A B A A E D B A A B C B A E E A B B B Levels: A B C D E
