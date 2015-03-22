@@ -1,0 +1,193 @@
+title: "Activity Quality Classification"
+author: "Geoff Yuen"
+date: "Monday, March 23, 2015"
+output: html_document
+```{r}
+library(caret)
+library(ggplot2)
+library(randomForest) 
+set.seed(2468)
+```
+Get data into memory
+```{r}
+trainingUrl <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testingUrl <-  "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(url = trainingUrl, destfile = 'training_data.csv')
+download.file(url = testingUrl, destfile = 'test_data.csv')
+```
+Clean up unwanted data other than predictors/predicted
+```{r}
+ml_training <- read.csv(file = 'training_data.csv',na.strings=c("NA","#DIV/0!", ""))
+ml_test <- read.csv(file = 'test_data.csv',na.strings=c("NA","#DIV/0!", ""))
+
+ml_training<-ml_training[,colSums(is.na(ml_training)) == 0]
+ml_test<-ml_test[,colSums(is.na(ml_test)) == 0]
+
+ml_training <-ml_training[,-c(1:7)]
+ml_test <-ml_test[,-c(1:7)]
+```
+check dimensions, colnames and see if any unmatched
+```{r}
+dim(ml_training) 
+dim(ml_test) 
+colnames(ml_training)
+colnames(ml_test)
+sameName <- colnames(ml_test) == colnames(ml_training)
+colnames(ml_training)[sameName==FALSE]
+```
+> dim(ml_training) 
+[1] 19622    53
+> dim(ml_test) 
+[1] 20 53
+> colnames(ml_training)
+ [1] "roll_belt"            "pitch_belt"           "yaw_belt"             "total_accel_belt"    
+ [5] "gyros_belt_x"         "gyros_belt_y"         "gyros_belt_z"         "accel_belt_x"        
+ [9] "accel_belt_y"         "accel_belt_z"         "magnet_belt_x"        "magnet_belt_y"       
+[13] "magnet_belt_z"        "roll_arm"             "pitch_arm"            "yaw_arm"             
+[17] "total_accel_arm"      "gyros_arm_x"          "gyros_arm_y"          "gyros_arm_z"         
+[21] "accel_arm_x"          "accel_arm_y"          "accel_arm_z"          "magnet_arm_x"        
+[25] "magnet_arm_y"         "magnet_arm_z"         "roll_dumbbell"        "pitch_dumbbell"      
+[29] "yaw_dumbbell"         "total_accel_dumbbell" "gyros_dumbbell_x"     "gyros_dumbbell_y"    
+[33] "gyros_dumbbell_z"     "accel_dumbbell_x"     "accel_dumbbell_y"     "accel_dumbbell_z"    
+[37] "magnet_dumbbell_x"    "magnet_dumbbell_y"    "magnet_dumbbell_z"    "roll_forearm"        
+[41] "pitch_forearm"        "yaw_forearm"          "total_accel_forearm"  "gyros_forearm_x"     
+[45] "gyros_forearm_y"      "gyros_forearm_z"      "accel_forearm_x"      "accel_forearm_y"     
+[49] "accel_forearm_z"      "magnet_forearm_x"     "magnet_forearm_y"     "magnet_forearm_z"    
+[53] "classe"          
+
+> colnames(ml_test)
+ [1] "roll_belt"            "pitch_belt"           "yaw_belt"             "total_accel_belt"    
+ [5] "gyros_belt_x"         "gyros_belt_y"         "gyros_belt_z"         "accel_belt_x"        
+ [9] "accel_belt_y"         "accel_belt_z"         "magnet_belt_x"        "magnet_belt_y"       
+[13] "magnet_belt_z"        "roll_arm"             "pitch_arm"            "yaw_arm"             
+[17] "total_accel_arm"      "gyros_arm_x"          "gyros_arm_y"          "gyros_arm_z"         
+[21] "accel_arm_x"          "accel_arm_y"          "accel_arm_z"          "magnet_arm_x"        
+[25] "magnet_arm_y"         "magnet_arm_z"         "roll_dumbbell"        "pitch_dumbbell"      
+[29] "yaw_dumbbell"         "total_accel_dumbbell" "gyros_dumbbell_x"     "gyros_dumbbell_y"    
+[33] "gyros_dumbbell_z"     "accel_dumbbell_x"     "accel_dumbbell_y"     "accel_dumbbell_z"    
+[37] "magnet_dumbbell_x"    "magnet_dumbbell_y"    "magnet_dumbbell_z"    "roll_forearm"        
+[41] "pitch_forearm"        "yaw_forearm"          "total_accel_forearm"  "gyros_forearm_x"     
+[45] "gyros_forearm_y"      "gyros_forearm_z"      "accel_forearm_x"      "accel_forearm_y"     
+[49] "accel_forearm_z"      "magnet_forearm_x"     "magnet_forearm_y"     "magnet_forearm_z"    
+[53] "problem_id"        
+
+> colnames(ml_training)[sameName==FALSE]
+[1] "classe"
+
+Next Split data into training and test set using 0.75 ratio
+```{r}
+inTrain <- createDataPartition(y=ml_training$classe, p=0.75, list=FALSE)
+training_data <- ml_training[inTrain,]
+cv_data <- ml_training[-inTrain,]
+````
+
+Plot & check data 
+```{r, echo=FALSE}
+qplot(accel_forearm_x, accel_forearm_y, col=classe, data=training_data)
+qplot(accel_forearm_z, total_accel_forearm, col=classe, data=training_data)
+plot(training_data$classe, col="green", main="Bar Plot Classe variable levels within training dataset", xlab="Classe levels", ylab="Frequency")
+```
+
+Try fitting model by LDA
+````{r}
+lda_mod <- train(classe ~., data=training_data, method="lda")
+lda_predicted <- predict(lda_mod, cv_data)
+lda_CM <- confusionMatrix(lda_predicted, cv_data$classe)
+plot(lda_CM$table, main = paste("LDA Confusion Matrix: Accuracy=", round(lda_CM$overall['Accuracy'], 2)))
+````
+Confusion Matrix and Statistics
+
+          Reference
+Prediction    A    B    C    D    E
+         A 1124  155   74   47   34
+         B   28  590   86   31  138
+         C  127  123  565   87   87
+         D  110   36  108  604   81
+         E    6   45   22   35  561
+
+Overall Statistics
+                                          
+               Accuracy : 0.7023          
+                 95% CI : (0.6893, 0.7151)
+    No Information Rate : 0.2845          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.6235          
+ Mcnemar's Test P-Value : < 2.2e-16       
+
+Statistics by Class:
+
+                     Class: A Class: B Class: C Class: D Class: E
+Sensitivity            0.8057   0.6217   0.6608   0.7512   0.6226
+Specificity            0.9117   0.9284   0.8953   0.9183   0.9730
+Pos Pred Value         0.7838   0.6758   0.5713   0.6432   0.8386
+Neg Pred Value         0.9219   0.9109   0.9259   0.9496   0.9197
+Prevalence             0.2845   0.1935   0.1743   0.1639   0.1837
+Detection Rate         0.2292   0.1203   0.1152   0.1232   0.1144
+Detection Prevalence   0.2924   0.1780   0.2017   0.1915   0.1364
+Balanced Accuracy      0.8587   0.7751   0.7781   0.8348   0.7978
+
+Next Try GBM model
+````{r}
+GBM_mod <- train(classe ~., data=training_data, method="gbm", verbose = FALSE)
+GBM_predicted <- predict(GBM_mod, cv_data)
+GBM_CM <- confusionMatrix(GBM_predicted, cv_data$classe)
+plot(GBM_CM$table, main = paste("GBM Confusion Matrix: Accuracy=", round(GBM_CM$overall['Accuracy'], 2)))
+````
+Confusion Matrix and Statistics
+
+          Reference
+Prediction    A    B    C    D    E
+         A 1375   36    0    0    0
+         B   13  878   28    3   12
+         C    5   33  814   19    7
+         D    1    1   13  775    8
+         E    1    1    0    7  874
+
+Overall Statistics
+                                          
+               Accuracy : 0.9617          
+                 95% CI : (0.9559, 0.9669)
+    No Information Rate : 0.2845          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.9515          
+ Mcnemar's Test P-Value : 6.364e-05       
+
+Statistics by Class:
+
+                     Class: A Class: B Class: C Class: D Class: E
+Sensitivity            0.9857   0.9252   0.9520   0.9639   0.9700
+Specificity            0.9897   0.9858   0.9842   0.9944   0.9978
+Pos Pred Value         0.9745   0.9400   0.9271   0.9712   0.9898
+Neg Pred Value         0.9943   0.9821   0.9898   0.9929   0.9933
+Prevalence             0.2845   0.1935   0.1743   0.1639   0.1837
+Detection Rate         0.2804   0.1790   0.1660   0.1580   0.1782
+Detection Prevalence   0.2877   0.1905   0.1790   0.1627   0.1801
+Balanced Accuracy      0.9877   0.9555   0.9681   0.9792   0.9839
+
+## Try RF Model with 100 trees, 4 fold cv
+````{r}
+rf_mod <- train(classe ~ ., data=training_data, method="rf", ntree = 100, 
+trControl = trainControl(method = "cv", number = 4, allowParallel = TRUE, verboseIter = TRUE))
+rf_predicted <- predict(rf_mod, cv_data)
+rf_CM <- confusionMatrix(rf_predicted , cv_data$classe)
+plot(rf_CM$table,  main = paste("Random Forest Confusion Matrix: Accuracy=", round(rf_CM$overall['Accuracy'], 2)))
+````
+Out-of-sample Accuracies
+````{r}
+OOSAccuracy <- data.frame(lda_CM$overall[1], GBM_CM$overall[1], rf_CM$overall[1])
+colnames(OOSAccuracy) <- c("RP overall", "GBM overall", "RF overall")
+OOSAccuracy 
+````
+           lda overall GBM overall RF overall
+Accuracy     0.7023     0.9862     0.9918
+
+````{r}
+plot(varImp(rf_mod))
+final_prediction <- predict(rf_mod, ml_test)
+final_prediction
+```
+> final_prediction
+ [1] B A B A A E D B A A B C B A E E A B B B
+Levels: A B C D E
