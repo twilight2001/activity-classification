@@ -191,3 +191,5 @@ final_prediction
 > final_prediction
  [1] B A B A A E D B A A B C B A E E A B B B
 Levels: A B C D E
+
+In Conclusion, random forest gives the best predictive model for classifying this set of activity data. 
