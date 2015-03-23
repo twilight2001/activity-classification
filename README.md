@@ -2,4 +2,4 @@
 wearable activity quality classification
 repo for final class project
 
-Very sorry I don't know how to convert it to HTML for GitHub properly before deadline, but see my text file output also as I documented all my work there also.
+Sorry friends, I did't figure out how to convert it to HTML for GitHub properly before deadline (my laptop crashes in middle of running GBM in R Studio), please see my text file output also as I documented all my work there also.
